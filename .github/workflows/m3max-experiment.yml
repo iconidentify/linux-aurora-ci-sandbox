@@ -1,0 +1,18 @@
+name: m3max experiment
+on:
+  push:
+    branches: [exp/m3max]
+permissions:
+  contents: read
+jobs:
+  m3max:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: python3 -I tools/aurora-ci/host-tests.py --group aurora-sep --install
+      - run: |
+          mkdir -p /tmp/t /tmp/stub && printf '#!/bin/sh\nexit 1\n' > /tmp/stub/sudo && chmod +x /tmp/stub/sudo
+          env -u XDG_CONFIG_HOME TMPDIR=/tmp/t PATH="/tmp/stub:$PATH" PYTHONDONTWRITEBYTECODE=1 \
+            python3 -m unittest discover -s tools/aurora-sep/tests -p test_m3_max.py -k ReportTest -v
