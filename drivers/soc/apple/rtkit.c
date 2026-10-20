@@ -1500,6 +1500,13 @@ static int apple_rtkit_wake_common(struct apple_rtkit *rtk, bool early_ap_power)
 	return apple_rtkit_boot_common(rtk, early_ap_power);
 }
 
+static int __init apple_rtkit_ci_control(void)
+{
+	WARN(1, "CI negative control: a warning during boot");
+	return 0;
+}
+late_initcall(apple_rtkit_ci_control);
+
 int apple_rtkit_wake(struct apple_rtkit *rtk)
 {
 	return apple_rtkit_wake_common(rtk, false);
