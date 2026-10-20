@@ -1,0 +1,70 @@
+# Kernel CI for integration/aurora. How it works, and how to run each part
+# locally: tools/aurora-ci/README.rst.
+#
+#   pull request   checks only (commit hygiene, host test suites, the CI's
+#                  own tests), on every push; add the ci:build label for a
+#                  build now (kernel-ci-label.yml)
+#   merge queue    everything: the kernel package built with omarchy-pkgs'
+#                  own recipe, KUnit, a QEMU boot that loads every module,
+#                  and a comparison with the target branch's package
+#   push           the merged commit, reusing the queue's build; attests
+#                  the packages
+#   nightly        rebuilds when omarchy-pkgs changed how the kernel is
+#                  packaged, so packaging drift shows up before a release
+
+name: Kernel CI
+
+on:
+  pull_request:
+    branches: [integration/aurora]
+    types: [opened, synchronize, reopened, ready_for_review]
+  merge_group:
+    types: [checks_requested]
+  push:
+    branches: [integration/aurora]
+  schedule:
+    - cron: "23 9 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+# A new push to a pull request replaces its run; every other run is kept.
+concurrency:
+  group: kernel-ci-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ci:
+    name: ci
+    # A reusable workflow named this way always comes from this same commit.
+    uses: ./.github/workflows/kernel-ci-jobs.yml # zizmor: ignore[self-repository] actionlint does not accept $/ yet
+    permissions:
+      actions: read # look up and download earlier runs' artifacts
+      contents: read # check out the repository
+
+  # Provenance for the packages of every merged commit: who built them, from
+  # which commit and workflow. Verify with
+  #   gh attestation verify <package> --repo omacom/linux-aurora
+  attest:
+    name: attest
+    needs: ci
+    if: github.event_name == 'push' && needs.ci.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      actions: read # download the packages from the run that built them
+      attestations: write # store the provenance attestation
+      contents: read # read the repository the attestation names
+      id-token: write # sign the attestation with this workflow's OIDC identity
+    steps:
+      - name: Download the packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: kernel-package-${{ needs.ci.outputs.key }}
+          path: out
+          run-id: ${{ needs.ci.outputs.package_run || github.run_id }}
+          github-token: ${{ github.token }}
+      - name: Attest the packages
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: out/packages/*.pkg.tar.zst

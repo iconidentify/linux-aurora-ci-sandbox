@@ -1,0 +1,6 @@
+{
+  "comment": "Hermetic host test suites run by host-tests.py. argv runs from the top of the tree; {output} is a fresh directory per suite.",
+  "apt": [],
+  "suites": [],
+  "excluded": {}
+}
