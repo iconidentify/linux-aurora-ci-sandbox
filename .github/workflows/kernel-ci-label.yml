@@ -1,0 +1,29 @@
+# A build on request: applying the ci:build label to a pull request runs the
+# full kernel CI (package, KUnit, boot) for its current head, before the merge
+# queue would. Applying a label needs triage access, so builds stay a
+# maintainer's decision; on a fork, re-apply the label after each push.
+# The required check is kernel-ci.yml's; these results are for review.
+
+name: Kernel CI (requested build)
+
+on:
+  pull_request:
+    branches: [integration/aurora]
+    types: [labeled]
+
+permissions: {}
+
+# Other labels must not cancel a build in progress.
+concurrency:
+  group: kernel-ci-label-${{ github.event.pull_request.number }}-${{ github.event.label.name }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: requested build
+    if: github.event.label.name == 'ci:build'
+    # A reusable workflow named this way always comes from this same commit.
+    uses: ./.github/workflows/kernel-ci-jobs.yml # zizmor: ignore[self-repository] actionlint does not accept $/ yet
+    permissions:
+      actions: read # look up and download earlier runs' artifacts
+      contents: read # check out the repository
