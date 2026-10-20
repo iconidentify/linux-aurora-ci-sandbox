@@ -1500,6 +1500,7 @@ static int apple_rtkit_wake_common(struct apple_rtkit *rtk, bool early_ap_power)
 	return apple_rtkit_boot_common(rtk, early_ap_power);
 }
 
+/* Wakes the coprocessor and waits for it to answer. */
 int apple_rtkit_wake(struct apple_rtkit *rtk)
 {
 	return apple_rtkit_wake_common(rtk, false);
