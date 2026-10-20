@@ -212,3 +212,4 @@ Packages built for a commit on ``integration/aurora`` carry a build
 provenance attestation::
 
   gh attestation verify linux-aurora-<version>-aarch64.pkg.tar.zst --repo omacom/linux-aurora
+
