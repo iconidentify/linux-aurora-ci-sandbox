@@ -1502,6 +1502,9 @@ static int apple_rtkit_wake_common(struct apple_rtkit *rtk, bool early_ap_power)
 
 int apple_rtkit_wake(struct apple_rtkit *rtk)
 {
+	int unused_ci_control = 0;
+
+	unused_ci_control = 1;
 	return apple_rtkit_wake_common(rtk, false);
 }
 EXPORT_SYMBOL_GPL(apple_rtkit_wake);
