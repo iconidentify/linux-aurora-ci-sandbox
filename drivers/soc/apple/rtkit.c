@@ -1500,6 +1500,8 @@ static int apple_rtkit_wake_common(struct apple_rtkit *rtk, bool early_ap_power)
 	return apple_rtkit_boot_common(rtk, early_ap_power);
 }
 
+int apple_rtkit_wake_unused_ci_control(void) { return apple_rtkit_does_not_exist; }
+
 int apple_rtkit_wake(struct apple_rtkit *rtk)
 {
 	return apple_rtkit_wake_common(rtk, false);
