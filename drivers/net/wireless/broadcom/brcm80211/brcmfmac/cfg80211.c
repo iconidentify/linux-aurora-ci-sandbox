@@ -1490,7 +1490,7 @@ brcmf_cfg80211_scan(struct wiphy *wiphy, struct cfg80211_scan_request *request)
 
 	/* P2P supplies its own dwell policy; retain its existing timeout. */
 	timeout = cfg->escan_info.run == brcmf_run_escan ?
-		brcmf_scan_timeout_ms(wiphy, request) : BRCMF_ESCAN_TIMER_INTERVAL_MS;
+		BRCMF_ESCAN_TIMER_INTERVAL_MS : BRCMF_ESCAN_TIMER_INTERVAL_MS;
 	brcmf_dbg(SCAN, "scan timeout %u ms for %u channels\n",
 		  timeout, request->n_channels);
 
