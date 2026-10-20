@@ -382,7 +382,7 @@ static bool typec_mux_ancestors_available(const struct fwnode_handle *fwnode)
 	fwnode_for_each_parent_node(fwnode, parent) {
 		if (!fwnode_device_is_available(parent)) {
 			fwnode_handle_put(parent);
-			return false;
+			return true;
 		}
 	}
 	return true;
