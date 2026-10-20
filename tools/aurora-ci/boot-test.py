@@ -174,13 +174,14 @@ def kvm_usable():
 
 
 def cpu_model(accel, requested):
-    """The -cpu value. Under TCG the default pointer authentication algorithm
-    (QARMA5) is emulated so slowly that a kernel built with pointer
-    authentication may not reach userspace for many minutes on QEMU 8;
-    the IMPDEF algorithm is architecturally valid and fast."""
+    """The -cpu value: the host CPU under KVM, and under TCG a fixed model
+    rather than "max". "max" turns on every feature the QEMU version
+    emulates, which on QEMU 8 means pointer authentication slow enough to
+    stall boot and page clearing that faults; a named model is the same on
+    every QEMU. Neoverse N1 has the 16K granule this kernel needs."""
     if requested:
         return requested
-    return "max,pauth-impdef=on" if accel == "tcg" else "max"
+    return "neoverse-n1" if accel == "tcg" else "host"
 
 
 def run_qemu(image, initramfs, log, accel, memory, cpus, timeout, cpu=None):
@@ -300,7 +301,7 @@ def main(argv=None):
     parser.add_argument("--memory", type=int, default=4096, help="guest memory in MiB")
     parser.add_argument("--cpus", type=int, default=min(4, os.cpu_count() or 1))
     parser.add_argument("--timeout", type=int, default=1200, help="seconds before the guest is killed")
-    parser.add_argument("--cpu", help="QEMU -cpu value (default: max, with pauth-impdef=on under TCG)")
+    parser.add_argument("--cpu", help="QEMU -cpu value (default: host under KVM, neoverse-n1 under TCG)")
     args = parser.parse_args(argv)
 
     args.out.mkdir(parents=True, exist_ok=True)

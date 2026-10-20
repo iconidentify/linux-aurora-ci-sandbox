@@ -14,10 +14,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {runner: ubuntu-24.04-arm, cpu: "max"}
-          - {runner: ubuntu-24.04-arm, cpu: "max,pauth-impdef=on"}
-          - {runner: ubuntu-24.04-arm, cpu: "max,pauth=off"}
-          - {runner: ubuntu-24.04, cpu: "max,pauth-impdef=on"}
+          - {runner: ubuntu-24.04-arm, cpu: ""}
+          - {runner: ubuntu-24.04, cpu: ""}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     steps:
@@ -51,6 +49,18 @@ jobs:
         run: |
           mkdir root && tar --zstd -xf out/packages/linux-aurora-[0-9]*.pkg.tar.zst -C root
           python3 -I tools/aurora-ci/boot-test.py --root root --busybox "$RUNNER_TEMP/busybox" \
-            --expected tools/aurora-ci/boot-expected.json --out "$RUNNER_TEMP/boot" --accel tcg --cpu "$CPU" --timeout 1500
+            --expected tools/aurora-ci/boot-expected.json --out "$RUNNER_TEMP/boot" --accel tcg ${CPU:+--cpu "$CPU"} --timeout 1500
       - if: always()
         run: head -c 3000 "$RUNNER_TEMP/boot/console.log"; echo; tail -c 2000 "$RUNNER_TEMP/boot/console.log"
+
+  kunit:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: python3 -I tools/aurora-ci/run-kunit.py --install-toolchain
+      - run: python3 -I tools/aurora-ci/run-kunit.py --output "$RUNNER_TEMP/kunit"
+      - if: always()
+        run: tail -c 4000 "$RUNNER_TEMP/kunit/test.log" || true
