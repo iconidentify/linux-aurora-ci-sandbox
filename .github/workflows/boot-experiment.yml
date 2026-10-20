@@ -1,0 +1,56 @@
+# Throwaway: measure the QEMU boot test on GitHub's runners with several
+# -cpu settings, against packages an earlier run built. Sandbox only.
+name: boot experiment
+on:
+  push:
+    branches: [exp/boot]
+permissions:
+  actions: read
+  contents: read
+jobs:
+  boot:
+    name: boot (${{ matrix.runner }}, ${{ matrix.cpu }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {runner: ubuntu-24.04-arm, cpu: "max"}
+          - {runner: ubuntu-24.04-arm, cpu: "max,pauth-impdef=on"}
+          - {runner: ubuntu-24.04-arm, cpu: "max,pauth=off"}
+          - {runner: ubuntu-24.04, cpu: "max,pauth-impdef=on"}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: tools/aurora-ci
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: kernel-package-e620bb9307abb9f38a37e2c95dfe8123
+          path: out
+          run-id: 39375090104
+          github-token: ${{ github.token }}
+      - name: Install
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends qemu-system-arm
+          if [ "$(uname -m)" = aarch64 ]; then
+            sudo apt-get install -y -q --no-install-recommends busybox-static
+            cp /bin/busybox "$RUNNER_TEMP/busybox"
+          else
+            curl -fsSLo "$RUNNER_TEMP/bb.deb" http://ports.ubuntu.com/ubuntu-ports/pool/main/b/busybox/busybox-static_1.36.1-6ubuntu3.1_arm64.deb
+            echo "d96535e0402c011e0ee43449799df2f4504d44b842e4f2b3a6cbc845508eaafc  $RUNNER_TEMP/bb.deb" | sha256sum -c
+            dpkg-deb -x "$RUNNER_TEMP/bb.deb" "$RUNNER_TEMP/bb"
+            cp "$RUNNER_TEMP/bb/usr/bin/busybox" "$RUNNER_TEMP/busybox"
+          fi
+          qemu-system-aarch64 --version; nproc; free -g; ls -l /dev/kvm || true
+      - name: Boot
+        env:
+          CPU: ${{ matrix.cpu }}
+        run: |
+          mkdir root && tar --zstd -xf out/packages/linux-aurora-[0-9]*.pkg.tar.zst -C root
+          python3 -I tools/aurora-ci/boot-test.py --root root --busybox "$RUNNER_TEMP/busybox" \
+            --expected tools/aurora-ci/boot-expected.json --out "$RUNNER_TEMP/boot" --accel tcg --cpu "$CPU" --timeout 1500
+      - if: always()
+        run: head -c 3000 "$RUNNER_TEMP/boot/console.log"; echo; tail -c 2000 "$RUNNER_TEMP/boot/console.log"

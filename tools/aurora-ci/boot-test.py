@@ -173,13 +173,23 @@ def kvm_usable():
     return os.access("/dev/kvm", os.R_OK | os.W_OK)
 
 
-def run_qemu(image, initramfs, log, accel, memory, cpus, timeout):
+def cpu_model(accel, requested):
+    """The -cpu value. Under TCG the default pointer authentication algorithm
+    (QARMA5) is emulated so slowly that a kernel built with pointer
+    authentication may not reach userspace for many minutes on QEMU 8;
+    the IMPDEF algorithm is architecturally valid and fast."""
+    if requested:
+        return requested
+    return "max,pauth-impdef=on" if accel == "tcg" else "max"
+
+
+def run_qemu(image, initramfs, log, accel, memory, cpus, timeout, cpu=None):
     command = [
-        "qemu-system-aarch64", "-M", "virt,gic-version=max", "-cpu", "max", "-accel", accel,
+        "qemu-system-aarch64", "-M", "virt,gic-version=max", "-cpu", cpu_model(accel, cpu), "-accel", accel,
         "-m", str(memory), "-smp", str(cpus), "-nodefaults", "-display", "none",
         "-serial", f"file:{log}", "-no-reboot",
         "-kernel", str(image), "-initrd", str(initramfs),
-        "-append", "console=ttyAMA0 rdinit=/init panic=-1 loglevel=4 log_buf_len=16M",
+        "-append", "console=ttyAMA0 earlycon rdinit=/init panic=-1 loglevel=4 log_buf_len=16M",
     ]
     started = time.monotonic()
     try:
@@ -261,7 +271,8 @@ def parse(log_text, kver, expected):
 def summary(report, meta):
     mods = report["modules"]
     lines = ["### Boot test (QEMU virt, shipped kernel)", "",
-             f"Accelerator `{meta['accel']}`, {meta['seconds']:.0f} s, kernel `{meta['kver']}`.", "",
+             f"Accelerator `{meta['accel']}` (`-cpu {meta['cpu']}`), {meta['seconds']:.0f} s, "
+             f"kernel `{meta['kver']}`.", "",
              f"Modules: {len(mods['ok'])} loaded, {len(mods['no_device'])} found no device, "
              f"{len(mods['expected'])} failed as expected, {len(mods['unexpected'])} failed, "
              f"{len(meta['skipped'])} skipped. Taint {report['taint']}.", ""]
@@ -289,6 +300,7 @@ def main(argv=None):
     parser.add_argument("--memory", type=int, default=4096, help="guest memory in MiB")
     parser.add_argument("--cpus", type=int, default=min(4, os.cpu_count() or 1))
     parser.add_argument("--timeout", type=int, default=1200, help="seconds before the guest is killed")
+    parser.add_argument("--cpu", help="QEMU -cpu value (default: max, with pauth-impdef=on under TCG)")
     args = parser.parse_args(argv)
 
     args.out.mkdir(parents=True, exist_ok=True)
@@ -301,7 +313,7 @@ def main(argv=None):
     for accel in accels:
         log.unlink(missing_ok=True)
         status, qemu_output, seconds, timed_out = run_qemu(image, initramfs, log, accel, args.memory,
-                                                           args.cpus, args.timeout)
+                                                           args.cpus, args.timeout, args.cpu)
         log_text = log.read_text(errors="replace") if log.exists() else ""
         # A QEMU that cannot start with KVM exits before the guest prints anything.
         if accel == "kvm" and not log_text.strip() and status not in (0, None):
@@ -315,7 +327,8 @@ def main(argv=None):
         report["failures"].insert(0, f"the guest did not power off within {args.timeout} s")
     elif status != 0:
         report["failures"].insert(0, f"QEMU exited with status {status}: {qemu_output.strip()[:300]}")
-    meta = {"kver": kver, "accel": accel, "seconds": seconds, "skipped": skipped, "planned": len(order)}
+    meta = {"kver": kver, "accel": accel, "cpu": cpu_model(accel, args.cpu), "seconds": seconds,
+            "skipped": skipped, "planned": len(order)}
     (args.out / "report.json").write_text(json.dumps(dict(report, **meta), indent=1) + "\n")
 
     text = summary(report, meta)
