@@ -93,6 +93,11 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # checkpatch.pl runs scripts/spdxcheck.py, which needs ply.
+      - name: Install checkpatch's helpers
+        run: |
+          sudo apt-get update -q
+          sudo apt-get install -y -q --no-install-recommends python3-ply
       - name: Check sign-offs, checkpatch and UAPI changes
         env:
           BASE_SHA: ${{ needs.plan.outputs.base_sha }}
