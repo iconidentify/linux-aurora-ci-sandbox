@@ -14,7 +14,7 @@
 #include <dt-bindings/leds/common.h>
 
 / {
-	compatible = "apple,j293", "apple,t8103", "apple,arm-platform";
+	compatible = "apple,j293", "apple,t8103", "apple,arm-platform"
 	model = "Apple MacBook Pro (13-inch, M1, 2020)";
 	chassis-type = "laptop";
 
