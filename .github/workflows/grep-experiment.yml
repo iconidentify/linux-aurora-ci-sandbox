@@ -1,0 +1,22 @@
+name: grep experiment
+on:
+  push:
+    branches: [exp/grep]
+permissions:
+  contents: read
+jobs:
+  grep:
+    runs-on: ubuntu-24.04
+    steps:
+      - run: |
+          grep --version | head -1; od --version | head -1; locale
+          python3 -c "
+          import struct, sys
+          def u32(n): return struct.pack('>I', n)
+          body = b'apple,j516s\0apple,t6030\0apple,arm-platform\0' + b'\0'*7
+          f = b'\xd0\x0d\xfe\xed' + u32(40+len(body)) + u32(40)*3 + u32(17) + u32(16) + u32(0)*3 + body
+          sys.stdout.buffer.write(b'M1N1:original\n\xd0\x0d\xfe\xed\0\0\1\0' + b'\0'*64 + f + f)" > boot.bin
+          echo "C locale:"; LC_ALL=C grep -obUaP '\xd0\x0d\xfe\xed' boot.bin | cut -d: -f1 | tr '\n' ' '; echo " rc=${PIPESTATUS[0]}"
+          echo "default locale:"; grep -obUaP '\xd0\x0d\xfe\xed' boot.bin | cut -d: -f1 | tr '\n' ' '; echo
+          echo "with -E bytes:"; LC_ALL=C grep -obUa $'\xd0\x0d\xfe\xed' boot.bin | cut -d: -f1 | tr '\n' ' '; echo
+          od -An -tu4 --endian=big -j 96 -N4 boot.bin
