@@ -4431,6 +4431,12 @@ M:	Ryan Murray <ryan@aurorasilicon.org>
 S:	Maintained
 F:	tools/aurora-display-notifier/
 
+AURORA KERNEL CI
+M:	Chris Kearney <303316+iconidentify@users.noreply.github.com>
+S:	Maintained
+F:	.github/workflows/kernel-ci*.yml
+F:	tools/aurora-ci/
+
 AUTOFDO BUILD
 M:	Rong Xu <xur@google.com>
 M:	Han Shen <shenhan@google.com>

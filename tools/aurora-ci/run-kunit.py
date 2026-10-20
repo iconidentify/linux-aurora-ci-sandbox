@@ -96,9 +96,13 @@ def flatten(group, path=(), results=None, suites=None):
     return results, suites
 
 
+BOOT = "(during boot, before the first suite)"
+
+
 def splats_by_test(log_text):
     """Kernel splats in kunit.py's test.log, attributed to the case whose
-    result line follows them: {test id: Counter(call site)}."""
+    result line follows them, or to BOOT when no suite has started yet:
+    {test id: Counter(call site)}."""
     found, pending, stack = {}, [], []
     for raw in log_text.splitlines():
         line = TIME.sub("", raw)
@@ -120,7 +124,10 @@ def splats_by_test(log_text):
         for pattern, site in SPLATS:
             match = pattern.match(line)
             if match:
-                pending.append(site(match))
+                if stack:
+                    pending.append(site(match))
+                else:
+                    found.setdefault(BOOT, Counter())[site(match)] += 1
                 break
     if pending:
         found.setdefault("(after the last result)", Counter()).update(pending)
